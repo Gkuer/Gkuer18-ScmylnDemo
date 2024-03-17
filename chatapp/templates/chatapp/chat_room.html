@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>채팅방: {{ room.title }}</title>
+</head>
+<body>
+<h1>채팅방: {{ room.title }}</h1>
+
+<div id="chat">
+    {% for message in messages %}
+    <p>{{ message.author }}: {{ message.content }}</p>
+    {% endfor %}
+</div>
+
+<div>
+    <input id="authorInput" type="text" placeholder="작성자 이름...">
+    <input id="messageInput" type="text" placeholder="메시지를 입력하세요...">
+    <button id="sendButton">보내기</button>
+</div>
+
+<script>
+    const roomName = window.location.pathname.split('/')[2];
+    const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const messageContent = data.message; // 메시지 내용
+        const author = data.author;
+
+        // 메시지와 작성자를 포함하는 문자열 생성
+        const messageText = `${messageContent} - ${author}`;
+
+        // 새로운 메시지 엘리먼트 생성
+        const messageElement = document.createElement('div');
+        messageElement.innerText = messageText;
+
+        // 메시지 엘리먼트를 채팅 로그에 추가
+        document.querySelector('#chat').appendChild(messageElement);
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.querySelector('#sendButton').onclick = function(e) {
+        const authorInput = document.querySelector('#authorInput');
+        const author = authorInput.value; // 작성자 이름
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const messageInput = document.querySelector('#messageInput');
+                const message = messageInput.value;
+
+                // 서버로 작성자와 메시지 정보를 함께 전송
+                chatSocket.send(JSON.stringify({
+                    author: author,
+                    message: message,
+                }));
+
+                messageInput.value = ''; // 메시지 필드 초기화
+            });
+        } else {
+            console.log("Geolocation is not supported by this browser.");
+        }
+    };
+</script>
+</body>
+</html>

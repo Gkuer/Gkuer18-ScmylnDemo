@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>채팅방 리스트</title>
+</head>
+<body>
+<h1>채팅방 리스트</h1>
+
+<div>
+    <input id="authorInput" type="text" placeholder="작성자 이름...">
+    <input id="latInput" type="text" placeholder="lat...">
+    <input id="longInput" type="text" placeholder="long...">
+    <div id="timer">다음 전송까지: 15초</div>
+</div>
+
+<div id="room_list">
+    {% for room in rooms %}
+    <h2><a href="{% url 'chat_room' room.title %}">{{ room.title }}</a></h2>
+    {% endfor %}
+</div>
+
+<script>
+    const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/`);
+    const timerElement = document.getElementById('timer');
+    let timeLeft = 15; // 초 단위
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const title = data.title;
+
+        // 채팅방 링크 생성
+        const chatRoomLink = document.createElement('a');
+        chatRoomLink.href = `/chat/${title}/`;
+        chatRoomLink.innerText = title;
+
+        // 새 메시지 엘리먼트 생성
+        const messageElement = document.createElement('h2');
+        messageElement.appendChild(chatRoomLink);
+
+        // 메시지 엘리먼트 추가
+        const roomList = document.querySelector('#room_list');
+        if (roomList.firstChild) {
+            roomList.insertBefore(messageElement, roomList.firstChild);
+        } else {
+            roomList.appendChild(messageElement);
+        }
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    // 타이머 업데이트
+    function updateTimer() {
+        timerElement.innerText = `다음 전송까지: ${timeLeft}초`;
+        if (timeLeft === 0) {
+            timeLeft = 15;
+        } else {
+            timeLeft -= 1;
+        }
+    }
+
+    // 주기적으로 위치 정보 전송 및 타이머 업데이트
+    setInterval(function() {
+        if (timeLeft === 15) {
+            const author = document.querySelector('#authorInput').value;
+            const lat = document.querySelector('#latInput').value;
+            const long = document.querySelector('#longInput').value;
+
+            if (chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(JSON.stringify({
+                    author: author,
+                    lat: lat,
+                    long: long
+                }));
+            }
+        }
+        updateTimer();
+    }, 1000); // 1초마다 실행
+
+</script>
+</body>
+</html>
